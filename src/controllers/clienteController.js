@@ -1,5 +1,4 @@
 // src/controllers/clienteController.js
-// Perfil e saldo do cliente
 
 const pool = require('../config/db');
 const { ok, erro } = require('../utils/resposta');
@@ -14,7 +13,6 @@ async function perfil(req, res) {
     if (result.rows.length === 0) return erro(res, 'Cliente não encontrado', 404);
     return ok(res, result.rows[0]);
   } catch (e) {
-    console.error(e);
     return erro(res, 'Erro ao buscar perfil', 500);
   }
 }
@@ -30,9 +28,21 @@ async function extrato(req, res) {
     );
     return ok(res, result.rows);
   } catch (e) {
-    console.error(e);
     return erro(res, 'Erro ao buscar extrato', 500);
   }
 }
 
-module.exports = { perfil, extrato };
+// GET /cliente/todos — usado pelo painel admin
+async function listarTodosClientes(req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT id, nome, telefone, email, ios_coins, codigo_indicacao, criado_em
+       FROM clientes ORDER BY criado_em DESC`
+    );
+    return ok(res, result.rows);
+  } catch (e) {
+    return erro(res, 'Erro ao listar clientes', 500);
+  }
+}
+
+module.exports = { perfil, extrato, listarTodosClientes };
