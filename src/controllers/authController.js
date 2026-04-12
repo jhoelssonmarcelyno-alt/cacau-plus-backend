@@ -14,7 +14,9 @@ const COINS_INDICACAO   = 50;
 function gerarCodigoIndicacao(telefone) {
   const digits = telefone.replace(/\D/g, '');
   const suffix = digits.slice(-4).padStart(4, '0');
-  return `CAC${suffix}${Date.now().toString().slice(-3)}`;
+  const ts  = Date.now().toString(36).toUpperCase().slice(-4);
+  const rnd = Math.random().toString(36).substring(2, 4).toUpperCase();
+  return `CAC${suffix}${ts}${rnd}`;
 }
 
 // ── POST /auth/cadastro-cliente ───────────────────────────────
