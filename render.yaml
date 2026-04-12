@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: cacau-plus-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # Você preenche no painel do Render
+      - key: JWT_SECRET
+        sync: false
