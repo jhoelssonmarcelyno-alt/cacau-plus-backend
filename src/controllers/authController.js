@@ -45,8 +45,8 @@ async function cadastrarCliente(req, res) {
     const codigo = gerarCodigoIndicacao(telefone);
 
     await client.query(
-      `INSERT INTO clientes (id, nome, telefone, email, senha_hash, ios_coins, codigo_indicacao, indicado_por)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+  `INSERT INTO clientes (id, nome, telefone, email, senha_hash, ios_coins, codigo_indicacao, indicado_por, numero)
+   VALUES ($1,$2,$3,$4,$5,$6,$7,$8, nextval('clientes_numero_seq'))`,
       [id, nome, telefone, email.toLowerCase(), hash, COINS_BOAS_VINDAS, codigo,
        codigoIndicacao || null]
     );
@@ -110,8 +110,8 @@ async function cadastrarLoja(req, res) {
     const id   = uuidv4();
 
     await pool.query(
-      `INSERT INTO lojas (id, nome, cpf_cnpj, endereco, telefone, email, senha_hash, coins_por_real, categoria)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+  `INSERT INTO lojas (id, nome, cpf_cnpj, endereco, telefone, email, senha_hash, coins_por_real, categoria, numero)
+   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, nextval('lojas_numero_seq'))`,
       [id, nome, cpfOuCnpj, endereco, telefone, email.toLowerCase(), hash,
        parseFloat(coinsPorReal), categoria || null]
     );

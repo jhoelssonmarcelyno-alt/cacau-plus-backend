@@ -17,6 +17,7 @@ app.use('/avaliacoes', require('./routes/avaliacoes'));
 app.use('/fidelidade', require('./routes/fidelidade'));
 app.use('/tarefas',    require('./routes/tarefas'));
 app.use('/admin',      require('./routes/admin'));
+app.use('/admin',      require('./routes/adminCoins'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', app: 'Cacau Plus' }));
 app.use((req, res) => res.status(404).json({ sucesso: false, mensagem: 'Rota não encontrada' }));
@@ -24,5 +25,5 @@ app.use((req, res) => res.status(404).json({ sucesso: false, mensagem: 'Rota nã
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`🍫 Cacau Plus backend rodando na porta ${PORT}`);
-  await setupAdmin(); // Cria admin padrão se não existir
+  await setupAdmin();
 });
