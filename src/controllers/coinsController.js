@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/db');
 const { ok, erro } = require('../utils/resposta');
 const { registrarVisita, verificarBrinde } = require('./fidelidadeController');
+const { calcularMultiplicador, atualizarNivel } = require('./niveisController');
 
 const COINS_POR_PCT = 100;
 const MINIMO_COINS  = 500;
@@ -35,11 +36,12 @@ async function processarCompra(req, res) {
     }
 
     const resCliente = await client.query(
-      'SELECT nome, ios_coins FROM clientes WHERE id=$1', [clienteId]
+      'SELECT nome, ios_coins, nivel, total_coins_ganhos FROM clientes WHERE id=$1', [clienteId]
     );
     if (!resCliente.rows.length) { await client.query('ROLLBACK'); return erro(res, 'Cliente não encontrado', 404); }
     const saldoAtual  = parseFloat(resCliente.rows[0].ios_coins);
     const nomeCliente = resCliente.rows[0].nome;
+    const nivel       = resCliente.rows[0].nivel || 'bronze';
 
     if (coinsDesc > saldoAtual) {
       await client.query('ROLLBACK');
@@ -50,10 +52,26 @@ async function processarCompra(req, res) {
     const descontoReais = (valorCompra * descontoPct) / 100;
     const valorFinal    = valorCompra - descontoReais;
     const coinsPorReal  = parseFloat(loja.coins_por_real);
-    const coinsGanhos   = valorFinal * coinsPorReal;
-    const saldoFinal    = saldoAtual - coinsDesc + coinsGanhos;
 
-    await client.query('UPDATE clientes SET ios_coins=$1 WHERE id=$2', [saldoFinal, clienteId]);
+    // Verifica campanha ativa
+    const resCampanha = await client.query(
+      `SELECT multiplicador, titulo FROM campanhas
+       WHERE ativo=true AND inicio <= NOW() AND fim >= NOW()
+       ORDER BY multiplicador DESC LIMIT 1`
+    );
+    const campanha = resCampanha.rows[0];
+    const multCampanha = campanha ? parseFloat(campanha.multiplicador) : 1;
+
+    // Multiplicador de nível
+    const multNivel = calcularMultiplicador(nivel);
+
+    // Multiplicador final = maior entre nível e campanha
+    const multiplicadorFinal = Math.max(multNivel, multCampanha);
+    const coinsGanhos = valorFinal * coinsPorReal * multiplicadorFinal;
+    const saldoFinal  = saldoAtual - coinsDesc + coinsGanhos;
+
+    await client.query('UPDATE clientes SET ios_coins=$1, total_coins_ganhos = total_coins_ganhos + $2 WHERE id=$3',
+      [saldoFinal, coinsGanhos, clienteId]);
 
     if (coinsDesc > 0) {
       await client.query(
@@ -63,26 +81,30 @@ async function processarCompra(req, res) {
     }
     await client.query(
       `INSERT INTO transacoes (id,cliente_id,coins,tipo,loja_id,descricao) VALUES ($1,$2,$3,'compra',$4,$5)`,
-      [uuidv4(), clienteId, coinsGanhos, lojaId, `Compra em ${loja.nome} — R$ ${valorFinal.toFixed(2)}`]
+      [uuidv4(), clienteId, coinsGanhos, lojaId,
+       `Compra em ${loja.nome} — R$ ${valorFinal.toFixed(2)}${multiplicadorFinal > 1 ? ` (${multiplicadorFinal}x)` : ''}`]
     );
 
-    // Registra visita e verifica brinde
     await registrarVisita(clienteId, lojaId, client);
     const brinde = await verificarBrinde(clienteId, lojaId, client);
+    const novoNivel = await atualizarNivel(clienteId, client);
 
     await client.query('COMMIT');
 
     return ok(res, {
       nomeCliente,
-      valorCompra:    parseFloat(valorCompra.toFixed(2)),
+      valorCompra:        parseFloat(valorCompra.toFixed(2)),
       descontoPct,
-      descontoReais:  parseFloat(descontoReais.toFixed(2)),
-      valorFinal:     parseFloat(valorFinal.toFixed(2)),
-      coinsDebitados: coinsDesc,
-      coinsGanhos:    parseFloat(coinsGanhos.toFixed(2)),
-      saldoAnterior:  parseFloat(saldoAtual.toFixed(2)),
-      saldoFinal:     parseFloat(saldoFinal.toFixed(2)),
-      brinde,         // null ou nome do brinde ganho
+      descontoReais:      parseFloat(descontoReais.toFixed(2)),
+      valorFinal:         parseFloat(valorFinal.toFixed(2)),
+      coinsDebitados:     coinsDesc,
+      coinsGanhos:        parseFloat(coinsGanhos.toFixed(2)),
+      multiplicador:      multiplicadorFinal,
+      campanhaAtiva:      campanha?.titulo || null,
+      saldoAnterior:      parseFloat(saldoAtual.toFixed(2)),
+      saldoFinal:         parseFloat(saldoFinal.toFixed(2)),
+      nivel:              novoNivel,
+      brinde,
     }, 'Compra processada!');
 
   } catch (e) {
@@ -98,16 +120,15 @@ async function buscarSaldoCliente(req, res) {
   const { clienteId } = req.params;
   try {
     const result = await pool.query(
-      'SELECT nome, ios_coins FROM clientes WHERE id=$1', [clienteId]
+      'SELECT nome, ios_coins, nivel FROM clientes WHERE id=$1', [clienteId]
     );
     if (!result.rows.length) return erro(res, 'Cliente não encontrado', 404);
     return ok(res, {
       nome:     result.rows[0].nome,
       iosCoins: parseFloat(result.rows[0].ios_coins),
+      nivel:    result.rows[0].nivel,
     });
-  } catch (e) {
-    return erro(res, 'Erro ao buscar saldo', 500);
-  }
+  } catch (e) { return erro(res, 'Erro ao buscar saldo', 500); }
 }
 
 async function resgatar(req, res) {

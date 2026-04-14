@@ -9,10 +9,10 @@ const {
   listarPremios, criarPremio, deletarPremio,
   relatorio,
 } = require('../controllers/adminController');
+const { listarCampanhas, criarCampanha, editarCampanha } = require('../controllers/campanhasController');
+const { enviarNotificacao } = require('../controllers/notificacoesController');
 
 router.post('/login', loginAdmin);
-
-// Todas as rotas abaixo exigem token admin
 router.use(autenticar, apenasAdmin);
 
 router.get('/dashboard',              dashboard);
@@ -27,5 +27,9 @@ router.get('/premios',                listarPremios);
 router.post('/premios',               criarPremio);
 router.delete('/premios/:id',         deletarPremio);
 router.get('/relatorio',              relatorio);
+router.get('/campanhas',              listarCampanhas);
+router.post('/campanhas',             criarCampanha);
+router.patch('/campanhas/:id',        editarCampanha);
+router.post('/notificacoes',          enviarNotificacao);
 
 module.exports = router;
