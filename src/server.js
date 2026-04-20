@@ -19,8 +19,10 @@ app.use('/campanhas',    require('./routes/campanhas'));
 app.use('/notificacoes', require('./routes/notificacoes'));
 app.use('/banners',      require('./routes/banners'));
 app.use('/push',         require('./routes/push'));
+app.use('/suporte',      require('./routes/suporte'));
 app.use('/admin',        require('./routes/admin'));
 app.use('/admin',        require('./routes/adminCoins'));
+app.use('/admin',        require('./routes/operacional'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', app: 'Cacau Plus' }));
 app.use((req, res) => res.status(404).json({ sucesso: false, mensagem: 'Rota não encontrada' }));
